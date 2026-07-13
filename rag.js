@@ -2,8 +2,18 @@ import fs from "fs";
 import { PDFParse } from "pdf-parse";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { pipeline } from "@xenova/transformers";
+import { Pinecone } from "@pinecone-database/pinecone";
+import dotenv from "dotenv";
 
-// embedding model
+dotenv.config();
+
+// Pinecone setup
+const pc = new Pinecone({
+  apiKey: process.env.PINECONE_API_KEY,
+});
+const index = pc.index("pdf-chat");
+
+//  embedding model
 const embedder = await pipeline(
   "feature-extraction",
   "Xenova/all-MiniLM-L6-v2",
@@ -20,23 +30,39 @@ export async function loadPDF(filePath) {
     chunkSize: 500,
     chunkOverlap: 50,
   });
+
   const docs = await splitter.createDocuments([text]);
 
   // embeddings
-  const embeddedDocs = [];
-  for (const doc of docs) {
-    const embedding = await embedder(doc.pageContent, {
+  let vectors = [];
+
+  for (let i = 0; i < docs.length; i++) {
+    const chunk = docs[i].pageContent;
+
+    const embedding = await embedder(chunk, {
       pooling: "mean",
       normalize: true,
     });
 
-    embeddedDocs.push({
-      text: doc.pageContent,
-      embedding: Array.from(embedding.data),
+    vectors.push({
+      id: `chunk-${i}`,
+      values: Array.from(embedding.data),
+      metadata: {
+        text: chunk,
+      },
     });
   }
 
-  console.log("✅ Embedded docs:", embeddedDocs.length);
+  // upload to Pinecone
+  try {
+    const pine_res = await index.namespace("pdf-chat").upsert({
+      records: vectors,
+    });
 
-  return embeddedDocs;
+    console.log("🚀 ~ loadPDF ~ pine_res:", pine_res);
+    return { message: pine_res };
+  } catch (error) {
+    console.log("🚀 ~ loadPDF ~ error:", error);
+    return { error: error };
+  }
 }
