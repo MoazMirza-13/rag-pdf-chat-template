@@ -4,6 +4,7 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { pipeline } from "@xenova/transformers";
 import { Pinecone } from "@pinecone-database/pinecone";
 import dotenv from "dotenv";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
@@ -18,6 +19,11 @@ const embedder = await pipeline(
   "feature-extraction",
   "Xenova/all-MiniLM-L6-v2",
 );
+
+// gemini model
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
 
 export async function loadPDF(filePath) {
   const dataBuffer = fs.readFileSync(filePath);
@@ -64,5 +70,52 @@ export async function loadPDF(filePath) {
   } catch (error) {
     console.log("🚀 ~ loadPDF ~ error:", error);
     return { error: error };
+  }
+}
+
+async function embedQuery(text) {
+  const embedding = await embedder(text, {
+    pooling: "mean",
+    normalize: true,
+  });
+
+  return Array.from(embedding.data);
+}
+
+export async function askQuestion(question) {
+  try {
+    // 1. embed query
+    const queryVector = await embedQuery(question);
+
+    // 2. search Pinecone
+    const searchResults = await index.namespace("pdf-chat").query({
+      vector: queryVector,
+      topK: 3,
+      includeMetadata: true,
+    });
+
+    // 3. build context
+    const context = searchResults.matches
+      .map((m) => m.metadata.text)
+      .join("\n\n");
+
+    // 4. call Gemini
+    const interaction = await ai.interactions.create({
+      model: "gemini-flash-latest",
+      input: `
+Answer ONLY from the context.
+If not found, say "Not in document".
+
+Context:
+${context}
+
+Question:
+${question}
+`,
+    });
+
+    return interaction.output_text;
+  } catch (error) {
+    return "Error getting answer";
   }
 }

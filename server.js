@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import { loadPDF } from "./rag.js";
+import { askQuestion, loadPDF } from "./rag.js";
 
 dotenv.config();
 
@@ -14,6 +14,21 @@ app.post("/upload", async (req, res) => {
     res.json({
       message: "PDF processed",
       text: text,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/ask", async (req, res) => {
+  try {
+    const { question } = req.body;
+
+    const answer = await askQuestion(question);
+
+    res.json({
+      question,
+      answer,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
