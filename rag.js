@@ -73,6 +73,7 @@ export async function loadPDFBuffer(dataBuffer, documentId) {
 
     return { chunks: vectors.length, result: pine_res };
   } catch (error) {
+    console.log("🚀 ~ loadPDFBuffer ~ error:", error);
     throw new Error(
       `Couldn't save the document to the vector database: ${error.message}`,
     );
