@@ -25,8 +25,7 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-export async function loadPDF(filePath) {
-  const dataBuffer = fs.readFileSync(filePath);
+export async function loadPDFBuffer(dataBuffer, namespaceName = "pdf-chat") {
   const pdf = await new PDFParse({ data: dataBuffer }).getText();
 
   const text = pdf.text;
@@ -40,7 +39,7 @@ export async function loadPDF(filePath) {
   const docs = await splitter.createDocuments([text]);
 
   // embeddings
-  let vectors = [];
+  const vectors = [];
 
   for (let i = 0; i < docs.length; i++) {
     const chunk = docs[i].pageContent;
@@ -51,7 +50,7 @@ export async function loadPDF(filePath) {
     });
 
     vectors.push({
-      id: `chunk-${i}`,
+      id: `chunk-${Date.now()}-${i}`,
       values: Array.from(embedding.data),
       metadata: {
         text: chunk,
@@ -59,17 +58,22 @@ export async function loadPDF(filePath) {
     });
   }
 
-  // upload to Pinecone
+  if (!vectors.length) {
+    throw new Error("We couldn't find readable text in that PDF.");
+  }
+
+  // Keep each uploaded document in its own namespace.
   try {
-    const pine_res = await index.namespace("pdf-chat").upsert({
+    const namespace = index.namespace(namespaceName);
+    const pine_res = await namespace.upsert({
       records: vectors,
     });
 
-    console.log("🚀 ~ loadPDF ~ pine_res:", pine_res);
-    return { message: pine_res };
+    return { chunks: vectors.length, result: pine_res };
   } catch (error) {
-    console.log("🚀 ~ loadPDF ~ error:", error);
-    return { error: error };
+    throw new Error(
+      `Couldn't save the document to the vector database: ${error.message}`,
+    );
   }
 }
 
@@ -82,13 +86,13 @@ async function embedQuery(text) {
   return Array.from(embedding.data);
 }
 
-export async function askQuestion(question) {
+export async function askQuestion(question, namespaceName = "pdf-chat") {
   try {
     // 1. embed query
     const queryVector = await embedQuery(question);
 
     // 2. search Pinecone
-    const searchResults = await index.namespace("pdf-chat").query({
+    const searchResults = await index.namespace(namespaceName).query({
       vector: queryVector,
       topK: 3,
       includeMetadata: true,
