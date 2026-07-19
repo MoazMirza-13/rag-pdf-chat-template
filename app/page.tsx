@@ -240,7 +240,7 @@ export default function Home() {
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   disabled={status !== "ready"}
-                  rows="2"
+                  rows={2}
                 />
                 <button
                   className="ask-button"

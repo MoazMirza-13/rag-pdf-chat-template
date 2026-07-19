@@ -1,4 +1,3 @@
-import fs from "fs";
 import PDFParser from "pdf2json";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Pinecone } from "@pinecone-database/pinecone";
@@ -10,35 +9,35 @@ dotenv.config();
 
 // Pinecone setup
 const pc = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY,
+  apiKey: process.env.PINECONE_API_KEY ?? "",
 });
 const index = pc.index("pdf-chat");
 
 // embedding model
-const hf = new InferenceClient(process.env.HF_TOKEN);
-async function embedQuery(text) {
+const hf = new InferenceClient(process.env.HF_TOKEN ?? "");
+async function embedQuery(text: string): Promise<number[]> {
   const embedding = await hf.featureExtraction({
     model: "sentence-transformers/all-MiniLM-L6-v2",
     inputs: text,
   });
-  return Array.from(embedding);
+
+  return Array.isArray(embedding) ? (embedding as number[]) : [];
 }
 
 // gemini model
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GEMINI_API_KEY ?? "",
 });
 
-export async function loadPDFBuffer(dataBuffer, documentId) {
+export async function loadPDFBuffer(dataBuffer: Buffer, documentId: string) {
   const namespaceName = `pdf-${documentId}`;
 
   const pdfParser = new PDFParser();
-  const text = await new Promise((resolve, reject) => {
-    pdfParser.on("pdfParser_dataReady", (pdfData) => {
-      // Extract text
+  const text = await new Promise<string>((resolve, reject) => {
+    pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
       let fullText = "";
-      pdfData.Pages.forEach((page) => {
-        page.Texts.forEach((textItem) => {
+      pdfData.Pages.forEach((page: any) => {
+        page.Texts.forEach((textItem: any) => {
           fullText += decodeURIComponent(textItem.R[0].T) + " ";
         });
         fullText += "\n\n";
@@ -59,7 +58,11 @@ export async function loadPDFBuffer(dataBuffer, documentId) {
   const docs = await splitter.createDocuments([text]);
 
   // embeddings
-  const vectors = [];
+  const vectors: Array<{
+    id: string;
+    values: number[];
+    metadata: { text: string };
+  }> = [];
 
   for (let i = 0; i < docs.length; i++) {
     const chunk = docs[i].pageContent;
@@ -87,15 +90,15 @@ export async function loadPDFBuffer(dataBuffer, documentId) {
     });
 
     return { chunks: vectors.length, result: pine_res };
-  } catch (error) {
+  } catch (error: unknown) {
     console.log("🚀 ~ loadPDFBuffer ~ error:", error);
     throw new Error(
-      `Couldn't save the document to the vector database: ${error.message}`,
+      `Couldn't save the document to the vector database: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
 
-export async function deleteDocumentNamespace(documentIds = []) {
+export async function deleteDocumentNamespace(documentIds: string[] = []) {
   if (!Array.isArray(documentIds) || documentIds.length === 0) {
     return 0;
   }
@@ -115,7 +118,7 @@ export async function deleteDocumentNamespace(documentIds = []) {
   return deleted;
 }
 
-export async function askQuestion(question, documentId) {
+export async function askQuestion(question: string, documentId: string) {
   const namespaceName = `${documentId}`;
   try {
     // 1. embed query
@@ -130,7 +133,7 @@ export async function askQuestion(question, documentId) {
 
     // 3. build context
     const context = searchResults.matches
-      .map((m) => m.metadata.text)
+      .map((m) => m.metadata?.text ?? "")
       .join("\n\n");
 
     // 4. call Gemini
@@ -149,7 +152,7 @@ ${question}
     });
 
     return interaction.output_text;
-  } catch (error) {
+  } catch {
     return "Error getting answer";
   }
 }

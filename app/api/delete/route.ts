@@ -1,4 +1,4 @@
-import { deleteDocumentNamespace } from "../../../rag.js";
+import { deleteDocumentNamespace } from "../../../rag";
 
 export const runtime = "nodejs";
 

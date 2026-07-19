@@ -1,4 +1,4 @@
-import { loadPDFBuffer } from "../../../rag.js";
+import { loadPDFBuffer } from "../../../rag";
 
 export const runtime = "nodejs";
 
