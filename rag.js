@@ -1,10 +1,10 @@
 import fs from "fs";
 import { PDFParse } from "pdf-parse";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { pipeline } from "@xenova/transformers";
 import { Pinecone } from "@pinecone-database/pinecone";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
+import { InferenceClient } from "@huggingface/inference";
 
 dotenv.config();
 
@@ -14,11 +14,15 @@ const pc = new Pinecone({
 });
 const index = pc.index("pdf-chat");
 
-//  embedding model
-const embedder = await pipeline(
-  "feature-extraction",
-  "Xenova/all-MiniLM-L6-v2",
-);
+// embedding model
+const hf = new InferenceClient(process.env.HF_TOKEN);
+async function embedQuery(text) {
+  const embedding = await hf.featureExtraction({
+    model: "sentence-transformers/all-MiniLM-L6-v2",
+    inputs: text,
+  });
+  return Array.from(embedding);
+}
 
 // gemini model
 const ai = new GoogleGenAI({
@@ -45,14 +49,11 @@ export async function loadPDFBuffer(dataBuffer, documentId) {
   for (let i = 0; i < docs.length; i++) {
     const chunk = docs[i].pageContent;
 
-    const embedding = await embedder(chunk, {
-      pooling: "mean",
-      normalize: true,
-    });
+    const embedding = await embedQuery(chunk);
 
     vectors.push({
       id: `${documentId}-chunk-${i}`,
-      values: Array.from(embedding.data),
+      values: embedding,
       metadata: {
         text: chunk,
       },
@@ -76,15 +77,6 @@ export async function loadPDFBuffer(dataBuffer, documentId) {
       `Couldn't save the document to the vector database: ${error.message}`,
     );
   }
-}
-
-async function embedQuery(text) {
-  const embedding = await embedder(text, {
-    pooling: "mean",
-    normalize: true,
-  });
-
-  return Array.from(embedding.data);
 }
 
 export async function deleteDocumentNamespace(documentIds = []) {
