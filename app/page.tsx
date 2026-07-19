@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 const Spark = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -15,6 +16,12 @@ const Upload = () => (
 const FileIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z M14 2v6h6" />
+  </svg>
+);
+
+const GithubIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20">
+    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.004.07 1.532 1.032 1.532 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.03-2.682-.103-.253-.447-1.27.098-2.646 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.91-1.294 2.75-1.025 2.75-1.025.545 1.376.202 2.393.1 2.646.64.698 1.029 1.591 1.029 2.682 0 3.841-2.337 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
   </svg>
 );
 
@@ -153,12 +160,12 @@ export default function Home() {
       </nav>
       <section className="hero" id="top">
         <div className="eyebrow">
-          <Spark /> YOUR KNOWLEDGE, UNLOCKED
+          <Spark /> RAG TEMPLATE
         </div>
         <h1>
-          Ask more from
+          Understand your PDFs
           <br />
-          <em>every page.</em>
+          <em>instantly.</em>
         </h1>
         <p>
           Upload a document. Maps its meaning, so you can get grounded answers
@@ -259,7 +266,7 @@ export default function Home() {
                     <Spark />
                     ANSWER
                   </span>
-                  <p>{answer}</p>
+                  <ReactMarkdown>{answer}</ReactMarkdown>
                 </>
               ) : (
                 <p className="placeholder">
@@ -278,8 +285,17 @@ export default function Home() {
         )}
       </section>
       <footer>
-        <span>BUILT FOR CLEARER THINKING</span>
-        <span>YOUR DOCUMENT · YOUR QUESTIONS · YOUR ANSWERS</span>
+        <span>Private by design · No data stored</span>
+        <a
+          href="https://github.com/MoazMirza-13/rag-pdf-chat-template"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="github-link"
+          title="View on GitHub"
+        >
+          <GithubIcon />
+          <span className="github-text">Open-source template</span>
+        </a>
       </footer>
     </main>
   );
