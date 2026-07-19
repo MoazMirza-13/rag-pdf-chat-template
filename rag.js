@@ -1,5 +1,5 @@
 import fs from "fs";
-import { PDFParse } from "pdf-parse";
+import PDFParser from "pdf2json";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Pinecone } from "@pinecone-database/pinecone";
 import dotenv from "dotenv";
@@ -31,9 +31,24 @@ const ai = new GoogleGenAI({
 
 export async function loadPDFBuffer(dataBuffer, documentId) {
   const namespaceName = `pdf-${documentId}`;
-  const pdf = await new PDFParse({ data: dataBuffer }).getText();
 
-  const text = pdf.text;
+  const pdfParser = new PDFParser();
+  const text = await new Promise((resolve, reject) => {
+    pdfParser.on("pdfParser_dataReady", (pdfData) => {
+      // Extract text
+      let fullText = "";
+      pdfData.Pages.forEach((page) => {
+        page.Texts.forEach((textItem) => {
+          fullText += decodeURIComponent(textItem.R[0].T) + " ";
+        });
+        fullText += "\n\n";
+      });
+      resolve(fullText.trim());
+    });
+
+    pdfParser.on("pdfParser_dataError", reject);
+    pdfParser.parseBuffer(dataBuffer);
+  });
 
   // chunks
   const splitter = new RecursiveCharacterTextSplitter({
