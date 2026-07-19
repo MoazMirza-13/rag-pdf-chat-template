@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const Spark = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -20,12 +20,63 @@ const FileIcon = () => (
 
 export default function Home() {
   const inputRef = useRef(null);
+  const documentIdsRef = useRef([]);
   const [file, setFile] = useState(null);
   const [documentId, setDocumentId] = useState(null);
   const [status, setStatus] = useState("idle");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
+
+  const persistDocumentIds = (ids = []) => {
+    const nextIds = Array.from(new Set(ids.filter(Boolean)));
+    documentIdsRef.current = nextIds;
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("documentIds", JSON.stringify(nextIds));
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const storedIds = JSON.parse(
+        sessionStorage.getItem("documentIds") || "[]",
+      );
+      if (Array.isArray(storedIds)) {
+        persistDocumentIds(storedIds);
+      }
+    } catch {
+      persistDocumentIds([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleCleanup = () => {
+      if (
+        !documentIdsRef.current.length ||
+        typeof navigator === "undefined" ||
+        typeof navigator.sendBeacon !== "function"
+      ) {
+        return;
+      }
+
+      navigator.sendBeacon(
+        "/api/delete",
+        new Blob([JSON.stringify({ documentIds: documentIdsRef.current })], {
+          type: "application/json",
+        }),
+      );
+    };
+
+    window.addEventListener("pagehide", handleCleanup);
+    window.addEventListener("beforeunload", handleCleanup);
+
+    return () => {
+      window.removeEventListener("pagehide", handleCleanup);
+      window.removeEventListener("beforeunload", handleCleanup);
+    };
+  }, []);
 
   const uploadFile = async (selectedFile) => {
     if (!selectedFile || selectedFile.type !== "application/pdf") {
@@ -46,6 +97,14 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Upload failed.");
       setDocumentId(data.documentId);
+      const storedIds =
+        typeof window !== "undefined"
+          ? JSON.parse(sessionStorage.getItem("documentIds") || "[]")
+          : [];
+      const nextIds = storedIds.includes(data.documentId)
+        ? storedIds
+        : [...storedIds, data.documentId];
+      persistDocumentIds(nextIds);
       setStatus("ready");
     } catch (err) {
       setStatus("error");

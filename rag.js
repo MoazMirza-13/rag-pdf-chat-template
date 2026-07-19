@@ -25,7 +25,8 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-export async function loadPDFBuffer(dataBuffer, namespaceName = "pdf-chat") {
+export async function loadPDFBuffer(dataBuffer, documentId) {
+  const namespaceName = `pdf-${documentId}`;
   const pdf = await new PDFParse({ data: dataBuffer }).getText();
 
   const text = pdf.text;
@@ -50,7 +51,7 @@ export async function loadPDFBuffer(dataBuffer, namespaceName = "pdf-chat") {
     });
 
     vectors.push({
-      id: `chunk-${Date.now()}-${i}`,
+      id: `${documentId}-chunk-${i}`,
       values: Array.from(embedding.data),
       metadata: {
         text: chunk,
@@ -86,7 +87,28 @@ async function embedQuery(text) {
   return Array.from(embedding.data);
 }
 
-export async function askQuestion(question, namespaceName = "pdf-chat") {
+export async function deleteDocumentNamespace(documentIds = []) {
+  if (!Array.isArray(documentIds) || documentIds.length === 0) {
+    return 0;
+  }
+
+  let deleted = 0;
+
+  for (const documentId of documentIds) {
+    const namespaceName = `pdf-${documentId}`;
+    try {
+      await index.namespace(namespaceName).deleteAll();
+      deleted += 1;
+    } catch (error) {
+      console.error(`Failed to delete namespace ${namespaceName}:`, error);
+    }
+  }
+
+  return deleted;
+}
+
+export async function askQuestion(question, documentId) {
+  const namespaceName = `${documentId}`;
   try {
     // 1. embed query
     const queryVector = await embedQuery(question);
