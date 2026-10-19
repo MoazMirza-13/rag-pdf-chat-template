@@ -9,7 +9,7 @@ Open-source RAG (Retrieval-Augmented Generation) PDF chat application with priva
 - 📄 **PDF Chat Interface** - Upload and chat with PDF documents in real-time
 - 🔐 **Private Sessions** - All conversations are ephemeral with no data persistence
 - 🤖 **AI-Powered** - Integrated with Google Gemini for intelligent responses
-- 🧠 **Smart Embeddings** - HuggingFace embeddings for semantic understanding
+- 🧠 **Smart Embeddings** - Gemini embeddings (`gemini-embedding-001`) for semantic understanding
 - 📊 **Vector Database** - Pinecone for fast, scalable semantic search
 - ⚡ **Fast & Responsive** - Built with Next.js for optimal performance
 - 🎨 **Modern UI** - Clean, intuitive interface with React 19
@@ -20,8 +20,7 @@ Open-source RAG (Retrieval-Augmented Generation) PDF chat application with priva
 - **Frontend**: React 19, Next.js 15, TypeScript, React Markdown
 - **Backend**: Next.js API routes
 - **AI/ML**: 
-  - Google Gemini API (`@google/genai`)
-  - HuggingFace Inference (`@huggingface/inference`)
+  - Google Gemini API (`@google/genai`) for chat and embeddings
   - LangChain (Core & Text Splitters)
 - **Vector Database**: Pinecone
 - **Document Processing**: pdf2json
@@ -32,7 +31,6 @@ Open-source RAG (Retrieval-Augmented Generation) PDF chat application with priva
 - npm or yarn
 - API Keys for:
   - Google Gemini
-  - HuggingFace
   - Pinecone
 
 ## 🚀 Getting Started
@@ -54,8 +52,7 @@ Open-source RAG (Retrieval-Augmented Generation) PDF chat application with priva
    
    Create a `.env.local` file in the root directory:
    ```env
-   NEXT_PUBLIC_GOOGLE_GENAI_API_KEY=your_gemini_api_key
-   HUGGINGFACE_API_KEY=your_huggingface_api_key
+   GEMINI_API_KEY=your_gemini_api_key
    PINECONE_API_KEY=your_pinecone_api_key
    ```
 
@@ -85,7 +82,7 @@ Open-source RAG (Retrieval-Augmented Generation) PDF chat application with priva
 
 1. **PDF Upload** - Users upload a PDF document
 2. **Text Extraction** - PDF is parsed using pdf2json
-3. **Embedding Generation** - Document text is split and embedded using HuggingFace
+3. **Embedding Generation** - Document text is split and embedded using Gemini (`gemini-embedding-001`)
 4. **Vector Storage** - Embeddings are stored in Pinecone for retrieval
 5. **Query Processing** - User questions are embedded and compared against document embeddings
 6. **Response Generation** - Relevant context is passed to Gemini API for intelligent responses

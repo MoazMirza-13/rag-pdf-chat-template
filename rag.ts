@@ -3,7 +3,6 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Pinecone } from "@pinecone-database/pinecone";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
-import { InferenceClient } from "@huggingface/inference";
 
 dotenv.config();
 
@@ -14,14 +13,26 @@ const pc = new Pinecone({
 const index = pc.index("pdf-chat");
 
 // embedding model
-const hf = new InferenceClient(process.env.HF_TOKEN ?? "");
-async function embedQuery(text: string): Promise<number[]> {
-  const embedding = await hf.featureExtraction({
-    model: "sentence-transformers/all-MiniLM-L6-v2",
-    inputs: text,
+async function embedQuery(
+  text: string,
+  taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_QUERY",
+): Promise<number[]> {
+  const response = await ai.models.embedContent({
+    model: "gemini-embedding-001",
+    contents: text,
+    config: {
+      taskType,
+      outputDimensionality: 384,
+    },
   });
 
-  return Array.isArray(embedding) ? (embedding as number[]) : [];
+  const embedding = response.embeddings?.[0]?.values;
+
+  if (!embedding?.length) {
+    throw new Error("Failed to generate embedding");
+  }
+
+  return embedding;
 }
 
 // gemini model
@@ -67,7 +78,7 @@ export async function loadPDFBuffer(dataBuffer: Buffer, documentId: string) {
   for (let i = 0; i < docs.length; i++) {
     const chunk = docs[i].pageContent;
 
-    const embedding = await embedQuery(chunk);
+    const embedding = await embedQuery(chunk, "RETRIEVAL_DOCUMENT");
 
     vectors.push({
       id: `${documentId}-chunk-${i}`,
@@ -152,7 +163,8 @@ ${question}
     });
 
     return interaction.output_text;
-  } catch {
+  } catch (error) {
+    console.error("askQuestion error:", error);
     return "Error getting answer";
   }
 }
